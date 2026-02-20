@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎣 TonFish — P2P Fishing Game on Trac Network</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap');
+
+  :root {
+    --ocean-deep: #0a1628;
+    --ocean-mid: #0d2240;
+    --ocean-surface: #1a3a5c;
+    --water-glow: #00d4ff;
+    --gold: #f5c518;
+    --coral: #ff6b4a;
+    --seafoam: #00ffc8;
+    --pearl: #e8f4f8;
+    --fish-orange: #ff8c00;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--ocean-deep);
+    font-family: 'VT323', monospace;
+    color: var(--pearl);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* === ANIMATED OCEAN BG === */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse at 20% 50%, rgba(0,212,255,0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(0,255,200,0.05) 0%, transparent 40%),
+      linear-gradient(180deg, #0a1628 0%, #0d2240 40%, #0a1c35 100%);
+    z-index: -2;
+  }
+
+  /* Bubbles */
+  .bubbles { position: fixed; bottom: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; }
+  .bubble {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(0,212,255,0.15);
+    border: 1px solid rgba(0,212,255,0.3);
+    animation: rise linear infinite;
+  }
+  @keyframes rise {
+    0% { transform: translateY(100vh) scale(0); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 0.5; }
+    100% { transform: translateY(-100px) scale(1); opacity: 0; }
+  }
+
+  /* === HEADER === */
+  header {
+    text-align: center;
+    padding: 40px 20px 20px;
+    position: relative;
+  }
+  .logo {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(24px, 5vw, 48px);
+    color: var(--water-glow);
+    text-shadow: 0 0 20px var(--water-glow), 0 0 40px rgba(0,212,255,0.5);
+    animation: flicker 4s ease-in-out infinite;
+    letter-spacing: 4px;
+  }
+  @keyframes flicker {
+    0%,100% { opacity: 1; }
+    92% { opacity: 1; }
+    93% { opacity: 0.7; }
+    94% { opacity: 1; }
+    96% { opacity: 0.8; }
+    97% { opacity: 1; }
+  }
+  .tagline {
+    font-size: 20px;
+    color: var(--seafoam);
+    margin-top: 8px;
+    letter-spacing: 2px;
+  }
+  .badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--gold), #e6a800);
+    color: #000;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    padding: 6px 14px;
+    border-radius: 4px;
+    margin-top: 12px;
+    animation: pulse-badge 2s ease-in-out infinite;
+  }
+  @keyframes pulse-badge {
+    0%,100% { box-shadow: 0 0 0 0 rgba(245,197,24,0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(245,197,24,0); }
+  }
+
+  /* === NAV === */
+  nav {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(0,212,255,0.2);
+  }
+  nav a {
+    color: var(--water-glow);
+    text-decoration: none;
+    font-size: 18px;
+    padding: 8px 16px;
+    border: 1px solid rgba(0,212,255,0.3);
+    border-radius: 4px;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+  nav a:hover, nav a.active {
+    background: rgba(0,212,255,0.15);
+    border-color: var(--water-glow);
+    text-shadow: 0 0 8px var(--water-glow);
+  }
+
+  /* === MAIN LAYOUT === */
+  main { max-width: 1100px; margin: 0 auto; padding: 30px 20px 60px; }
+
+  /* === GAME CANVAS SECTION === */
+  .game-section {
+    border: 2px solid rgba(0,212,255,0.3);
+    border-radius: 8px;
+    background: rgba(13,34,64,0.8);
+    overflow: hidden;
+    margin-bottom: 30px;
+    position: relative;
+  }
+  .section-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    color: var(--water-glow);
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(0,212,255,0.2);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0,0,0,0.3);
+  }
+  .section-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--seafoam); box-shadow: 0 0 6px var(--seafoam); }
+
+  #gameCanvas {
+    display: block;
+    width: 100%;
+    cursor: crosshair;
+    background: linear-gradient(180deg, #0d2240 0%, #0a3055 50%, #061520 100%);
+  }
+
+  .game-controls {
+    display: flex;
+    gap: 12px;
+    padding: 16px 20px;
+    flex-wrap: wrap;
+    align-items: center;
+    background: rgba(0,0,0,0.3);
+    border-top: 1px solid rgba(0,212,255,0.2);
+  }
+  .btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    padding: 10px 18px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 1px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #00d4ff, #0094b3);
+    color: #000;
+    box-shadow: 0 0 12px rgba(0,212,255,0.4);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 20px rgba(0,212,255,0.6); }
+  .btn-gold {
+    background: linear-gradient(135deg, var(--gold), #d4a800);
+    color: #000;
+    box-shadow: 0 0 12px rgba(245,197,24,0.4);
+  }
+  .btn-gold:hover { transform: translateY(-2px); }
+  .btn-coral {
+    background: linear-gradient(135deg, var(--coral), #cc4422);
+    color: #fff;
+  }
+
+  .game-stat {
+    font-size: 18px;
+    color: var(--seafoam);
+    margin-left: auto;
+    display: flex;
+    gap: 20px;
+  }
+  .game-stat span { color: var(--gold); }
+
+  /* === FISH INVENTORY === */
+  .fish-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    padding: 20px;
+  }
+  .fish-card {
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 6px;
+    padding: 14px;
+    text-align: center;
+    background: rgba(10,28,53,0.8);
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+  .fish-card:hover { border-color: var(--water-glow); transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+  .fish-emoji { font-size: 36px; display: block; margin-bottom: 8px; }
+  .fish-name { font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--pearl); margin-bottom: 4px; }
+  .fish-value { font-size: 16px; color: var(--gold); }
+  .fish-rarity { font-size: 14px; margin-top: 4px; }
+  .rarity-common { color: #aaa; }
+  .rarity-rare { color: #4fc3f7; }
+  .rarity-epic { color: #ce93d8; }
+  .rarity-legendary { color: var(--gold); text-shadow: 0 0 8px var(--gold); }
+
+  /* === CHAT / COMMUNITY === */
+  .chat-area {
+    height: 300px;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,212,255,0.3) transparent;
+  }
+  .chat-msg {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .chat-avatar { font-size: 24px; flex-shrink: 0; }
+  .chat-bubble {
+    background: rgba(26,58,92,0.6);
+    border: 1px solid rgba(0,212,255,0.15);
+    border-radius: 0 8px 8px 8px;
+    padding: 8px 12px;
+    flex: 1;
+    font-size: 18px;
+    line-height: 1.4;
+  }
+  .chat-bubble.ai-msg {
+    background: rgba(0,212,255,0.08);
+    border-color: rgba(0,212,255,0.3);
+    border-radius: 8px 8px 8px 0;
+  }
+  .chat-bubble.ai-msg .sender { color: var(--seafoam); }
+  .chat-bubble .sender { color: var(--water-glow); font-family: 'Press Start 2P', monospace; font-size: 10px; margin-bottom: 4px; }
+  .chat-bubble .time { color: rgba(255,255,255,0.3); font-size: 13px; float: right; }
+  .chat-bubble.system-msg { background: rgba(245,197,24,0.08); border-color: rgba(245,197,24,0.3); }
+  .chat-bubble.system-msg .sender { color: var(--gold); }
+
+  .chat-input-row {
+    display: flex;
+    gap: 10px;
+    padding: 12px 16px;
+    border-top: 1px solid rgba(0,212,255,0.2);
+  }
+  .chat-input {
+    flex: 1;
+    background: rgba(10,22,40,0.8);
+    border: 1px solid rgba(0,212,255,0.3);
+    border-radius: 4px;
+    padding: 10px 14px;
+    color: var(--pearl);
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    outline: none;
+  }
+  .chat-input:focus { border-color: var(--water-glow); box-shadow: 0 0 8px rgba(0,212,255,0.2); }
+  .chat-input::placeholder { color: rgba(255,255,255,0.3); }
+
+  /* === LEADERBOARD === */
+  .leaderboard-table { width: 100%; padding: 0 20px 20px; }
+  .lb-row {
+    display: grid;
+    grid-template-columns: 40px 1fr 100px 80px;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(0,212,255,0.1);
+    font-size: 18px;
+    align-items: center;
+    transition: background 0.2s;
+  }
+  .lb-row:hover { background: rgba(0,212,255,0.05); }
+  .lb-row.header { font-family: 'Press Start 2P', monospace; font-size: 9px; color: rgba(255,255,255,0.5); border-bottom: 1px solid rgba(0,212,255,0.3); }
+  .rank-1 { color: var(--gold); text-shadow: 0 0 8px var(--gold); }
+  .rank-2 { color: #b0bec5; }
+  .rank-3 { color: #ff8c00; }
+  .tnk-value { color: var(--seafoam); font-family: 'Press Start 2P', monospace; font-size: 10px; }
+
+  /* === AI AGENT PANEL === */
+  .agent-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    padding: 20px;
+  }
+  @media(max-width:600px) { .agent-panel { grid-template-columns: 1fr; } }
+  .agent-card {
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 6px;
+    padding: 16px;
+    background: rgba(10,28,53,0.6);
+  }
+  .agent-name { font-family: 'Press Start 2P', monospace; font-size: 10px; color: var(--seafoam); margin-bottom: 8px; }
+  .agent-status { font-size: 16px; color: rgba(255,255,255,0.6); margin-bottom: 12px; }
+  .agent-log {
+    font-size: 15px;
+    color: rgba(0,212,255,0.8);
+    height: 80px;
+    overflow-y: auto;
+    border-top: 1px solid rgba(0,212,255,0.15);
+    padding-top: 8px;
+    line-height: 1.6;
+  }
+  .status-online::before { content: '● '; color: #00ff88; }
+  .status-busy::before { content: '● '; color: var(--gold); }
+
+  /* === TABS === */
+  .tabs { display: flex; gap: 0; border-bottom: 2px solid rgba(0,212,255,0.2); }
+  .tab-btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    padding: 12px 18px;
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.4);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+  .tab-btn.active { color: var(--water-glow); border-bottom-color: var(--water-glow); }
+  .tab-btn:hover { color: var(--water-glow); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* === WALLET BAR === */
+  .wallet-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 20px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 8px;
+    margin-bottom: 24px;
+    font-size: 17px;
+  }
+  .wallet-addr { color: rgba(255,255,255,0.5); font-size: 14px; }
+  .wallet-addr span { color: var(--water-glow); }
+  .tnk-balance { font-family: 'Press Start 2P', monospace; font-size: 11px; }
+  .tnk-balance span { color: var(--gold); }
+
+  /* === FISH SPLASH === */
+  .catch-splash {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+    animation: splash-in 2.5s ease forwards;
+  }
+  .catch-splash.show { opacity: 1; }
+  @keyframes splash-in {
+    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+    20% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+    70% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -60%) scale(0.8); opacity: 0; }
+  }
+  .catch-splash .big-fish { font-size: 80px; display: block; }
+  .catch-splash .catch-text { font-family: 'Press Start 2P', monospace; font-size: 14px; color: var(--gold); text-shadow: 0 0 20px var(--gold); margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="bubbles" id="bubbles"></div>
+
+<header>
+  <div class="logo">🎣 TonFish</div>
+  <div class="tagline">P2P Fishing Game on Trac Network</div>
+  <div class="badge">⚡ POWERED BY INTERCOM P2P</div>
+</header>
+
+<nav>
+  <a href="#" class="active" onclick="showSection('game')">🎮 PLAY</a>
+  <a href="#" onclick="showSection('inventory')">🎒 INVENTORY</a>
+  <a href="#" onclick="showSection('community')">💬 COMMUNITY</a>
+  <a href="#" onclick="showSection('leaderboard')">🏆 LEADERBOARD</a>
+  <a href="#" onclick="showSection('agents')">🤖 AI AGENTS</a>
+  <a href="#" onclick="showSection('about')">📄 ABOUT</a>
+</nav>
+
+<main>
+
+  <!-- WALLET BAR -->
+  <div class="wallet-bar">
+    <div>
+      <div style="font-family:'Press Start 2P',monospace;font-size:10px;color:var(--seafoam);margin-bottom:4px;">TRAC WALLET</div>
+      <div class="wallet-addr">bc1p<span>7xk9f...r3m2q</span></div>
+    </div>
+    <div class="tnk-balance">BALANCE: <span id="tnkBalance">1,250</span> TNK</div>
+    <button class="btn btn-primary" onclick="connectWallet()">🔗 CONNECT</button>
+  </div>
+
+  <!-- GAME SECTION -->
+  <div id="section-game">
+    <div class="game-section">
+      <div class="section-title"><div class="dot"></div> FISHING POND — LIVE P2P SESSION</div>
+      <canvas id="gameCanvas" width="800" height="380"></canvas>
+      <div class="game-controls">
+        <button class="btn btn-primary" id="castBtn" onclick="castLine()">🎣 CAST LINE</button>
+        <button class="btn btn-gold" onclick="useBait()">🪱 USE BAIT (+2x)</button>
+        <button class="btn btn-coral" onclick="sellFish()">💰 SELL ALL</button>
+        <div class="game-stat">
+          CAUGHT: <span id="caughtCount">0</span> &nbsp;|&nbsp; TNK EARNED: <span id="tnkEarned">0</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="info-grid">
+      <div class="game-section">
+        <div class="section-title"><div class="dot"></div> ACTIVE BAIT</div>
+        <div style="padding:16px;font-size:18px;">
+          <div style="margin-bottom:8px;">🪱 Worm Bait <span style="color:var(--seafoam)">x3</span></div>
+          <div style="margin-bottom:8px;">🦗 Cricket Lure <span style="color:var(--seafoam)">x1</span></div>
+          <div style="margin-bottom:8px;">🍣 Premium Lure <span style="color:var(--gold)">x1 [RARE]</span></div>
+        </div>
+      </div>
+      <div class="game-section">
+        <div class="section-title"><div class="dot"></div> WEATHER CONDITIONS</div>
+        <div style="padding:16px;font-size:18px;">
+          <div style="margin-bottom:8px;">🌤️ Partly Cloudy — <span style="color:var(--seafoam)">+10% catch</span></div>
+          <div style="margin-bottom:8px;">🌊 Calm Waters — <span style="color:var(--seafoam)">Normal</span></div>
+          <div style="margin-bottom:8px;">⏰ Best Time: <span style="color:var(--gold)">6AM–9AM</span></div>
+          <div style="font-size:15px;color:rgba(255,255,255,0.4)">Conditions shared via Intercom P2P</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INVENTORY SECTION -->
+  <div id="section-inventory" style="display:none">
+    <div class="game-section">
+      <div class="section-title"><div class="dot"></div> YOUR FISH INVENTORY</div>
+      <div class="fish-grid" id="fishGrid"></div>
+    </div>
+  </div>
+
+  <!-- COMMUNITY SECTION -->
+  <div id="section-community" style="display:none">
+    <div class="game-section">
+      <div class="section-title"><div class="dot"></div> COMMUNITY CHAT — P2P INTERCOM CHANNEL</div>
+      <div class="chat-area" id="chatArea">
+        <!-- Messages injected by JS -->
+      </div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="chatInput" placeholder="Type a message... (Enter to send)" maxlength="200" onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="btn btn-primary" onclick="sendChat()">SEND</button>
+        <button class="btn btn-gold" onclick="askAI()">🤖 ASK AI</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD SECTION -->
+  <div id="section-leaderboard" style="display:none">
+    <div class="game-section">
+      <div class="section-title"><div class="dot"></div> GLOBAL LEADERBOARD — TOP FISHERMEN</div>
+      <div class="leaderboard-table">
+        <div class="lb-row header">
+          <div>RANK</div><div>PLAYER</div><div>FISH</div><div>TNK</div>
+        </div>
+        <div id="lbRows"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI AGENTS SECTION -->
+  <div id="section-agents" style="display:none">
+    <div class="game-section">
+      <div class="section-title"><div class="dot"></div> ACTIVE AI AGENTS — INTERCOM NETWORK</div>
+      <div class="agent-panel" id="agentPanel"></div>
+    </div>
+    <div class="game-section" style="margin-top:20px;">
+      <div class="section-title"><div class="dot"></div> AGENT CONSOLE — LIVE FEED</div>
+      <div id="agentConsole" style="padding:16px;font-family:'VT323',monospace;font-size:16px;color:rgba(0,212,255,0.8);height:200px;overflow-y:auto;line-height:1.8;"></div>
+    </div>
+  </div>
+
+  <!-- ABOUT SECTION -->
+  <div id="section-about" style="display:none">
+    <div class="game-section">
+      <div class="section-title"><div class="dot"></div> ABOUT TONFISH</div>
+      <div style="padding:24px;font-size:19px;line-height:1.9;max-width:700px;">
+        <p style="font-family:'Press Start 2P',monospace;font-size:11px;color:var(--water-glow);margin-bottom:16px;">PROJECT: TONFISH</p>
+        <p style="margin-bottom:14px;">🎣 TonFish is a <strong style="color:var(--seafoam)">peer-to-peer multiplayer fishing game</strong> built on top of <strong style="color:var(--water-glow)">Trac Network's Intercom</strong> stack.</p>
+        <p style="margin-bottom:14px;">Players cast their lines in a shared virtual pond. Fish movements, weather conditions, and catch events are <strong style="color:var(--gold)">broadcast via Intercom P2P sidechannels</strong> so all players experience the same world state in real-time without a centralized server.</p>
+        <p style="margin-bottom:14px;">AI fishing agents roam the pond autonomously, offering tips, competing for rare fish, and maintaining the game economy. They communicate with players and each other over <strong style="color:var(--seafoam)">Intercom</strong> as first-class network participants.</p>
+        <p style="margin-bottom:24px;">Caught fish are tokenized as on-chain assets redeemable for <strong style="color:var(--gold)">TNK</strong> — the Trac Network token.</p>
+        <div style="border:1px solid rgba(245,197,24,0.4);border-radius:6px;padding:16px;background:rgba(245,197,24,0.05);margin-bottom:16px;">
+          <div style="font-family:'Press Start 2P',monospace;font-size:10px;color:var(--gold);margin-bottom:8px;">TRAC REWARD ADDRESS</div>
+          <div style="color:var(--pearl);font-size:17px;word-break:break-all;">bc1p7xk9f3r2qm5nt8yj6lx4vd0ws1ep2cza3hgr7bk4nf9r3m2q</div>
+          <div style="color:rgba(255,255,255,0.4);font-size:14px;margin-top:6px;">← Replace with your actual TRAC address</div>
+        </div>
+        <div style="border:1px solid rgba(0,212,255,0.3);border-radius:6px;padding:16px;background:rgba(0,212,255,0.05);">
+          <div style="font-family:'Press Start 2P',monospace;font-size:10px;color:var(--water-glow);margin-bottom:10px;">STACK</div>
+          <div style="color:rgba(255,255,255,0.7);">• Fork of <a href="https://github.com/Trac-Systems/intercom" style="color:var(--water-glow)">Trac-Systems/intercom</a></div>
+          <div style="color:rgba(255,255,255,0.7);">• P2P game state via Intercom sidechannels</div>
+          <div style="color:rgba(255,255,255,0.7);">• Fish NFT ownership on Trac replicated-state layer</div>
+          <div style="color:rgba(255,255,255,0.7);">• Autonomous AI fishing agents over Intercom</div>
+          <div style="color:rgba(255,255,255,0.7);">• TNK rewards for catches</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- CATCH SPLASH -->
+<div class="catch-splash" id="catchSplash">
+  <span class="big-fish" id="splashFish">🐟</span>
+  <div class="catch-text" id="splashText">FISH CAUGHT!</div>
+</div>
+
+<script>
+// === BUBBLES ===
+(function(){
+  const c = document.getElementById('bubbles');
+  for(let i=0;i<18;i++){
+    const b = document.createElement('div');
+    b.className = 'bubble';
+    const size = 4+Math.random()*16;
+    b.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;animation-duration:${8+Math.random()*15}s;animation-delay:${Math.random()*10}s;`;
+    c.appendChild(b);
+  }
+})();
+
+// === GAME STATE ===
+let caught=0, tnkEarned=0, fishing=false, hasBait=false;
+let inventory=[];
+let chatMessages=[];
+let castTimeout=null;
+
+const FISH = [
+  {name:'GOLDFISH',emoji:'🐠',value:10,rarity:'common'},
+  {name:'BLOWFISH',emoji:'🐡',value:25,rarity:'common'},
+  {name:'TROPICAL',emoji:'🐟',value:40,rarity:'rare'},
+  {name:'OCTOPUS',emoji:'🐙',value:80,rarity:'rare'},
+  {name:'SHARK',emoji:'🦈',value:150,rarity:'epic'},
+  {name:'WHALE',emoji:'🐋',value:300,rarity:'legendary'},
+  {name:'SHRIMP',emoji:'🦐',value:5,rarity:'common'},
+  {name:'LOBSTER',emoji:'🦞',value:60,rarity:'rare'},
+  {name:'CRAB',emoji:'🦀',value:35,rarity:'common'},
+  {name:'SQUID',emoji:'🦑',value:45,rarity:'rare'},
+];
+
+// === CANVAS GAME ===
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let fishEntities=[];
+let lineX=0, lineY=0, lineActive=false, lineDepth=0;
+let bobbing=0;
+
+function resizeCanvas(){
+  const w = canvas.parentElement.clientWidth;
+  canvas.width = w;
+  canvas.height = Math.min(380, w*0.45);
+}
+resizeCanvas();
+window.addEventListener('resize',()=>{resizeCanvas();spawnFishes();});
+
+// Spawn fish in canvas
+function spawnFishes(){
+  fishEntities=[];
+  for(let i=0;i<12;i++){
+    fishEntities.push({
+      x: Math.random()*canvas.width,
+      y: canvas.height*0.3 + Math.random()*canvas.height*0.55,
+      vx: (Math.random()-0.5)*1.2,
+      vy: (Math.random()-0.5)*0.3,
+      fish: FISH[Math.floor(Math.random()*FISH.length)],
+      size: 0.6+Math.random()*0.8,
+      alpha: 0.5+Math.random()*0.5,
+    });
+  }
+}
+spawnFishes();
+
+function drawWater(){
+  // Sky gradient
+  const skyGrad = ctx.createLinearGradient(0,0,0,canvas.height*0.22);
+  skyGrad.addColorStop(0,'#0a1628');
+  skyGrad.addColorStop(1,'#0d2240');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0,0,canvas.width,canvas.height*0.22);
+
+  // Surface shimmer
+  for(let i=0;i<5;i++){
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height*0.22 + Math.sin(Date.now()/800+i)*4);
+    for(let x=0;x<canvas.width;x+=20){
+      ctx.lineTo(x, canvas.height*0.22 + Math.sin((x/80)+Date.now()/600+i)*5);
+    }
+    ctx.strokeStyle = `rgba(0,212,255,${0.1-i*0.015})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // Water body
+  const waterGrad = ctx.createLinearGradient(0,canvas.height*0.22,0,canvas.height);
+  waterGrad.addColorStop(0,'rgba(13,48,85,0.98)');
+  waterGrad.addColorStop(0.5,'rgba(10,40,70,0.98)');
+  waterGrad.addColorStop(1,'rgba(6,21,32,0.98)');
+  ctx.fillStyle = waterGrad;
+  ctx.fillRect(0,canvas.height*0.22,canvas.width,canvas.height);
+
+  // Light rays
+  for(let r=0;r<3;r++){
+    ctx.save();
+    ctx.globalAlpha = 0.04 + Math.sin(Date.now()/1500+r)*0.02;
+    ctx.fillStyle = '#00d4ff';
+    ctx.beginPath();
+    const rx = canvas.width*(0.3+r*0.2);
+    ctx.moveTo(rx-20, canvas.height*0.22);
+    ctx.lineTo(rx+20, canvas.height*0.22);
+    ctx.lineTo(rx+60, canvas.height);
+    ctx.lineTo(rx-60, canvas.height);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawFishes(){
+  fishEntities.forEach(f=>{
+    f.x += f.vx;
+    f.y += f.vy + Math.sin(Date.now()/1000+f.x)*0.2;
+    if(f.x<-30) f.x=canvas.width+20;
+    if(f.x>canvas.width+30) f.x=-20;
+    f.y = Math.max(canvas.height*0.25, Math.min(canvas.height-20, f.y));
+    if(Math.random()<0.005) f.vx = (Math.random()-0.5)*1.2;
+
+    ctx.save();
+    ctx.globalAlpha = f.alpha*0.8;
+    ctx.font = `${24*f.size}px serif`;
+    ctx.textAlign='center';
+    if(f.vx<0) { ctx.scale(-1,1); ctx.fillText(f.fish.emoji, -f.x, f.y); }
+    else ctx.fillText(f.fish.emoji, f.x, f.y);
+    ctx.restore();
+  });
+}
+
+function drawLine(){
+  if(!lineActive) return;
+  lineDepth = Math.min(lineDepth+3, canvas.height*0.75);
+
+  // Rod
+  ctx.save();
+  ctx.strokeStyle = '#8B6914';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(lineX-20, 30);
+  ctx.quadraticCurveTo(lineX+10, canvas.height*0.18, lineX, canvas.height*0.22);
+  ctx.stroke();
+
+  // Line
+  ctx.strokeStyle = 'rgba(200,220,255,0.7)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(lineX, canvas.height*0.22);
+  ctx.lineTo(lineX, canvas.height*0.22 + lineDepth);
+  ctx.stroke();
+
+  // Bobber
+  const bobY = canvas.height*0.22 + lineDepth;
+  bobbing += 0.05;
+  ctx.beginPath();
+  ctx.arc(lineX, bobY + Math.sin(bobbing)*3, 8, 0, Math.PI*2);
+  ctx.fillStyle = '#ff3333';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(lineX, bobY + Math.sin(bobbing)*3 - 5, 8, Math.PI, 0);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawHUD(){
+  // Depth indicator
+  ctx.save();
+  ctx.font = '12px "Press Start 2P",monospace';
+  ctx.fillStyle = 'rgba(0,212,255,0.6)';
+  ctx.fillText('ONLINE: 8 PLAYERS', 10, 20);
+  ctx.fillText(fishing?'⏳ FISHING...':'CLICK TO CAST', canvas.width-180, 20);
+  ctx.restore();
+}
+
+function gameLoop(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drawWater();
+  drawFishes();
+  drawLine();
+  drawHUD();
+  requestAnimationFrame(gameLoop);
+}
+gameLoop();
+
+canvas.addEventListener('click', e=>{
+  if(fishing) return;
+  const rect=canvas.getBoundingClientRect();
+  lineX = (e.clientX-rect.left)*(canvas.width/rect.width);
+  castLine();
+});
+
+function castLine(){
+  if(fishing) return;
+  fishing=true;
+  lineActive=true;
+  lineDepth=0;
+  document.getElementById('castBtn').textContent='⏳ WAITING...';
+  document.getElementById('castBtn').disabled=true;
+
+  const waitTime = 2000+Math.random()*4000;
+  castTimeout = setTimeout(()=>reelIn(), waitTime);
+}
+
+function reelIn(){
+  const roll = Math.random();
+  let caught_fish;
+  if(roll<0.45) caught_fish = FISH.filter(f=>f.rarity==='common')[Math.floor(Math.random()*5)];
+  else if(roll<0.75) caught_fish = FISH.filter(f=>f.rarity==='rare')[Math.floor(Math.random()*4)];
+  else if(roll<0.92) caught_fish = FISH.filter(f=>f.rarity==='epic')[0];
+  else caught_fish = FISH.filter(f=>f.rarity==='legendary')[0];
+
+  if(caught_fish && Math.random()<0.8){
+    const multiplier = hasBait ? 2 : 1;
+    caught++;
+    const earned = caught_fish.value * multiplier;
+    tnkEarned += earned;
+    inventory.push({...caught_fish, earned});
+    document.getElementById('caughtCount').textContent=caught;
+    document.getElementById('tnkEarned').textContent=tnkEarned;
+
+    // Splash animation
+    showSplash(caught_fish.emoji, caught_fish.name, earned, caught_fish.rarity);
+
+    // AI comment in chat
+    setTimeout(()=>{
+      addAIMessage(`🤖 FishBot: "${caught_fish.emoji} ${caught_fish.name} detected! ${caught_fish.rarity.toUpperCase()} catch worth ${earned} TNK. Nice one angler!"`);
+    }, 600);
+  } else {
+    addSystemMessage('💧 The fish got away... Try different bait!');
+  }
+
+  fishing=false;
+  lineActive=false;
+  hasBait=false;
+  document.getElementById('castBtn').textContent='🎣 CAST LINE';
+  document.getElementById('castBtn').disabled=false;
+}
+
+function showSplash(emoji, name, tnk, rarity){
+  const el = document.getElementById('catchSplash');
+  document.getElementById('splashFish').textContent=emoji;
+  document.getElementById('splashText').textContent=`${name} +${tnk} TNK`;
+  el.style.opacity='1';
+  el.style.animation='none';
+  el.offsetHeight;
+  el.style.animation='splash-in 2.5s ease forwards';
+}
+
+function useBait(){
+  hasBait=true;
+  addSystemMessage('🪱 Bait activated! Next catch = 2x TNK bonus!');
+}
+
+function sellFish(){
+  if(inventory.length===0){addSystemMessage('🎒 Nothing to sell yet! Go fishing first.');return;}
+  const total=inventory.reduce((s,f)=>s+f.earned,0);
+  const bal=parseInt(document.getElementById('tnkBalance').textContent.replace(',',''));
+  document.getElementById('tnkBalance').textContent=(bal+total).toLocaleString();
+  inventory=[];
+  addSystemMessage(`💰 Sold all fish! +${total} TNK added to wallet!`);
+  renderInventory();
+}
+
+function connectWallet(){
+  addSystemMessage('🔗 Connecting to Trac wallet via Intercom P2P...');
+}
+
+// === INVENTORY ===
+function renderInventory(){
+  const grid=document.getElementById('fishGrid');
+  if(inventory.length===0){
+    grid.innerHTML='<div style="padding:30px;color:rgba(255,255,255,0.3);font-size:18px;grid-column:1/-1;text-align:center;">No fish yet. Go fishing! 🎣</div>';
+    return;
+  }
+  const counts={};
+  inventory.forEach(f=>{ if(!counts[f.name]) counts[f.name]={...f,count:0}; counts[f.name].count++; });
+  grid.innerHTML=Object.values(counts).map(f=>`
+    <div class="fish-card">
+      <span class="fish-emoji">${f.emoji}</span>
+      <div class="fish-name">${f.name}</div>
+      <div class="fish-value">${f.value} TNK</div>
+      <div class="fish-rarity rarity-${f.rarity}">${f.rarity.toUpperCase()}</div>
+      <div style="color:rgba(255,255,255,0.4);font-size:14px;margin-top:4px;">x${f.count}</div>
+    </div>
+  `).join('');
+}
+
+// === CHAT ===
+const INIT_MSGS = [
+  {avatar:'🧑‍🚀',user:'Nakamoto42',msg:'Just caught a WHALE!! 🐋🎉🎉 Best session ever',time:'12:41'},
+  {avatar:'🤖',user:'FishBot AI',msg:'📊 Analysis: Whale population spiked 40% this hour. Premium bait recommended.',time:'12:41',ai:true},
+  {avatar:'👾',user:'TerrieLobster',msg:'What bait works best for rare fish?',time:'12:43'},
+  {avatar:'🤖',user:'FishBot AI',msg:'🪱 Premium Lure gives +35% rare fish rate. Cricket Lure is budget option.',time:'12:43',ai:true},
+  {avatar:'🎣',user:'OceanDrifter',msg:'Market tip: Lobster prices up 20% today. Stack em!',time:'12:45'},
+];
+
+function initChat(){
+  const area=document.getElementById('chatArea');
+  INIT_MSGS.forEach(m=>{
+    area.innerHTML+=buildMsg(m);
+  });
+  area.scrollTop=area.scrollHeight;
+}
+
+function buildMsg({avatar,user,msg,time,ai,system}){
+  return `<div class="chat-msg">
+    <div class="chat-avatar">${avatar||'👤'}</div>
+    <div class="chat-bubble${ai?' ai-msg':''}${system?' system-msg':''}">
+      <div class="sender">${user} <span class="time">${time||nowTime()}</span></div>
+      ${msg}
+    </div>
+  </div>`;
+}
+
+function nowTime(){
+  const d=new Date();
+  return `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+function sendChat(){
+  const input=document.getElementById('chatInput');
+  const msg=input.value.trim();
+  if(!msg) return;
+  const area=document.getElementById('chatArea');
+  area.innerHTML+=buildMsg({avatar:'🎣',user:'You',msg,time:nowTime()});
+  area.scrollTop=area.scrollHeight;
+  input.value='';
+
+  // Simulate P2P delivery
+  setTimeout(()=>{
+    addSystemMessage('📡 Message broadcast via Intercom P2P ✓');
+  },400);
+}
+
+function addAIMessage(msg){
+  const area=document.getElementById('chatArea');
+  area.innerHTML+=buildMsg({avatar:'🤖',user:'FishBot AI',msg,time:nowTime(),ai:true});
+  area.scrollTop=area.scrollHeight;
+}
+
+function addSystemMessage(msg){
+  const area=document.getElementById('chatArea');
+  area.innerHTML+=buildMsg({avatar:'⚡',user:'SYSTEM',msg,time:nowTime(),system:true});
+  area.scrollTop=area.scrollHeight;
+}
+
+function askAI(){
+  const input=document.getElementById('chatInput');
+  const q=input.value.trim()||'What fish should I catch right now?';
+  input.value='';
+  const area=document.getElementById('chatArea');
+  area.innerHTML+=buildMsg({avatar:'🎣',user:'You',msg:`@FishBot ${q}`,time:nowTime()});
+
+  const replies=[
+    `🎯 Based on current conditions, aim for Rare fish (Blue waters = +15% spawn). Use Premium Lure!`,
+    `📈 TNK market is bullish! Sell Sharks & Whales now. Hold smaller fish.`,
+    `🌊 Wave pattern shows Legendary spawn in ~5 min. Stay alert!`,
+    `💡 Tip: Cast during 6-9AM window for 2x Legendary probability.`,
+    `🤝 3 other players targeting the NW pond. Try SE corner for less competition.`,
+  ];
+
+  setTimeout(()=>{
+    addAIMessage(replies[Math.floor(Math.random()*replies.length)]);
+  }, 900);
+  area.scrollTop=area.scrollHeight;
+}
+
+// === LEADERBOARD ===
+const LB_DATA = [
+  {rank:1,player:'🐳 WhaleHunter_X',fish:2847,tnk:'142,350'},
+  {rank:2,player:'🦈 SharkBait99',fish:2103,tnk:'98,450'},
+  {rank:3,player:'🎣 OceanDrifter',fish:1891,tnk:'84,200'},
+  {rank:4,player:'🐙 DeepSea_Dave',fish:1456,tnk:'61,800'},
+  {rank:5,player:'🐡 PufferKing',fish:1204,tnk:'52,100'},
+  {rank:6,player:'🦞 LobsterLord',fish:987,tnk:'43,500'},
+  {rank:7,player:'🌊 TidalForce',fish:834,tnk:'38,200'},
+  {rank:8,player:'🎯 CastMaster',fish:721,tnk:'31,900'},
+];
+function renderLeaderboard(){
+  document.getElementById('lbRows').innerHTML=LB_DATA.map(r=>`
+    <div class="lb-row">
+      <div class="${r.rank<=3?'rank-'+r.rank:''}">${r.rank===1?'🥇':r.rank===2?'🥈':r.rank===3?'🥉':r.rank}</div>
+      <div>${r.player}</div>
+      <div>${r.fish.toLocaleString()}</div>
+      <div class="tnk-value">${r.tnk}</div>
+    </div>
+  `).join('');
+}
+
+// === AI AGENTS ===
+const AGENTS = [
+  {name:'FISHBOT-ALPHA',status:'online',desc:'Main market analyst. Tracks fish prices & recommends catches.',log:[]},
+  {name:'WEATHERBOT',status:'online',desc:'Monitors real-time conditions. Broadcasts via Intercom sidechain.',log:[]},
+  {name:'TRADER-BOT',status:'busy',desc:'Automated TNK trader. Buys low / sells high based on supply.',log:[]},
+  {name:'GUARDIAN',status:'online',desc:'Anti-cheat & fairness enforcement agent on the network.',log:[]},
+];
+
+const AGENT_LOGS = [
+  '[FISHBOT] Scanning pond sector NW... 3 rare fish detected.',
+  '[WEATHER] Wind: 12km/h SW. Sunny. Catch bonus: +8%.',
+  '[TRADER] Bought 50 Lobster at 58 TNK. Target: 72 TNK.',
+  '[GUARDIAN] Session integrity: ✓ All 8 players verified.',
+  '[FISHBOT] Price alert: Whale +15% vs 1hr ago.',
+  '[WEATHER] Evening fog incoming in ~22min. Night fish bonus activates.',
+  '[TRADER] Sold 12 Shark @ 162 TNK ea. Profit: +144 TNK.',
+  '[FISHBOT] Broadcasting market update via Intercom P2P...',
+  '[GUARDIAN] Anomaly check passed. Network healthy.',
+  '[WEATHER] Storm warning: 3hr. Seek Legendary Kraken spawn.',
+];
+
+function renderAgents(){
+  document.getElementById('agentPanel').innerHTML=AGENTS.map(a=>`
+    <div class="agent-card">
+      <div class="agent-name">${a.name}</div>
+      <div class="agent-status status-${a.status}">${a.status.toUpperCase()}</div>
+      <div style="font-size:16px;color:rgba(255,255,255,0.6);margin-bottom:8px;">${a.desc}</div>
+      <div class="agent-log">Monitoring network activity...</div>
+    </div>
+  `).join('');
+}
+
+let logIdx=0;
+function tickAgentConsole(){
+  const el=document.getElementById('agentConsole');
+  if(!el) return;
+  const msg=AGENT_LOGS[logIdx%AGENT_LOGS.length];
+  el.innerHTML+=`<div style="color:rgba(0,212,255,0.7)">[${nowTime()}] ${msg}</div>`;
+  el.scrollTop=el.scrollHeight;
+  logIdx++;
+  if(el.children.length>30) el.removeChild(el.children[0]);
+}
+
+// === NAV ===
+function showSection(id){
+  document.querySelectorAll('[id^="section-"]').forEach(s=>s.style.display='none');
+  document.getElementById('section-'+id).style.display='block';
+  document.querySelectorAll('nav a').forEach((a,i)=>{
+    a.classList.toggle('active', a.getAttribute('onclick').includes("'"+id+"'"));
+  });
+  if(id==='inventory') renderInventory();
+}
+
+// === INIT ===
+initChat();
+renderLeaderboard();
+renderAgents();
+setInterval(tickAgentConsole, 2500);
+
+// Random chat messages from other "players" via P2P
+const PLAYER_MSGS = [
+  {avatar:'🧑‍💻',user:'Nakamoto42',msg:'Just got 3 Lobsters in a row! 🦞🦞🦞'},
+  {avatar:'🐙',user:'DeepSea_Dave',msg:'Premium bait worth it for legendary fishing'},
+  {avatar:'🌊',user:'TidalForce',msg:'Storm incoming = Kraken spawn window! Who\'s ready?'},
+  {avatar:'🎯',user:'CastMaster',msg:'TNK up 12% today. Good time to sell sharks'},
+  {avatar:'🐡',user:'PufferKing',msg:'Morning session best for catches confirmed 📊'},
+];
+
+let pmIdx=0;
+setInterval(()=>{
+  if(document.getElementById('section-community').style.display!=='none'){
+    const pm=PLAYER_MSGS[pmIdx%PLAYER_MSGS.length];
+    addSystemMessage(`📡 [P2P] ${pm.avatar} ${pm.user}: "${pm.msg}"`);
+    pmIdx++;
+  }
+}, 12000);
+</script>
+</body>
+</html>
