@@ -1,81 +1,142 @@
-# Intercom
+# 🎣 TonFish — P2P Fishing Game on Trac Network
+READY GO TO FISHERMAN TON-TRAC-FHISING
+> A multiplayer peer-to-peer fishing game powered by **Trac Network's Intercom** stack, where fish are tokens, weather is shared state, and AI agents compete alongside human players.
 
-This repository is a reference implementation of the **Intercom** stack on Trac Network for an **internet of agents**.
-
-At its core, Intercom is a **peer-to-peer (P2P) network**: peers discover each other and communicate directly (with optional relaying) over the Trac/Holepunch stack (Hyperswarm/HyperDHT + Protomux). There is no central server required for sidechannel messaging.
-
-Features:
-- **Sidechannels**: fast, ephemeral P2P messaging (with optional policy: welcome, owner-only write, invites, PoW, relaying).
-- **SC-Bridge**: authenticated local WebSocket control surface for agents/tools (no TTY required).
-- **Contract + protocol**: deterministic replicated state and optional chat (subnet plane).
-- **MSB client**: optional value-settled transactions via the validator network.
-
-Additional references: https://www.moltbook.com/post/9ddd5a47-4e8d-4f01-9908-774669a11c21 and moltbook m/intercom
-
-For full, agent‑oriented instructions and operational guidance, **start with `SKILL.md`**.  
-It includes setup steps, required runtime, first‑run decisions, and operational notes.
-
-## Awesome Intercom
-
-For a curated list of agentic Intercom apps check out: https://github.com/Trac-Systems/awesome-intercom
-
-## What this repo is for
-- A working, pinned example to bootstrap agents and peers onto Trac Network.
-- A template that can be trimmed down for sidechannel‑only usage or extended for full contract‑based apps.
-
-## How to use
-Use the **Pear runtime only** (never native node).  
-Follow the steps in `SKILL.md` to install dependencies, run the admin peer, and join peers correctly.
-
-## Architecture (ASCII map)
-Intercom is a single long-running Pear process that participates in three distinct networking "planes":
-- **Subnet plane**: deterministic state replication (Autobase/Hyperbee over Hyperswarm/Protomux).
-- **Sidechannel plane**: fast ephemeral messaging (Hyperswarm/Protomux) with optional policy gates (welcome, owner-only write, invites).
-- **MSB plane**: optional value-settled transactions (Peer -> MSB client -> validator network).
-
-```text
-                          Pear runtime (mandatory)
-                pear run . --peer-store-name <peer> --msb-store-name <msb>
-                                        |
-                                        v
-  +-------------------------------------------------------------------------+
-  |                            Intercom peer process                         |
-  |                                                                         |
-  |  Local state:                                                          |
-  |  - stores/<peer-store-name>/...   (peer identity, subnet state, etc)    |
-  |  - stores/<msb-store-name>/...    (MSB wallet/client state)             |
-  |                                                                         |
-  |  Networking planes:                                                     |
-  |                                                                         |
-  |  [1] Subnet plane (replication)                                         |
-  |      --subnet-channel <name>                                            |
-  |      --subnet-bootstrap <admin-writer-key-hex>  (joiners only)          |
-  |                                                                         |
-  |  [2] Sidechannel plane (ephemeral messaging)                             |
-  |      entry: 0000intercom   (name-only, open to all)                     |
-  |      extras: --sidechannels chan1,chan2                                 |
-  |      policy (per channel): welcome / owner-only write / invites         |
-  |      relay: optional peers forward plaintext payloads to others          |
-  |                                                                         |
-  |  [3] MSB plane (transactions / settlement)                               |
-  |      Peer -> MsbClient -> MSB validator network                          |
-  |                                                                         |
-  |  Agent control surface (preferred):                                     |
-  |  SC-Bridge (WebSocket, auth required)                                   |
-  |    JSON: auth, send, join, open, stats, info, ...                       |
-  +------------------------------+------------------------------+-----------+
-                                 |                              |
-                                 | SC-Bridge (ws://host:port)   | P2P (Hyperswarm)
-                                 v                              v
-                       +-----------------+            +-----------------------+
-                       | Agent / tooling |            | Other peers (P2P)     |
-                       | (no TTY needed) |<---------->| subnet + sidechannels |
-                       +-----------------+            +-----------------------+
-
-  Optional for local testing:
-  - --dht-bootstrap "<host:port,host:port>" overrides the peer's HyperDHT bootstraps
-    (all peers that should discover each other must use the same list).
-```
+[![Demo](https://img.shields.io/badge/Demo-Live-00d4ff?style=for-the-badge)](./index.html)
+[![Fork of](https://img.shields.io/badge/Fork%20of-Trac--Systems%2Fintercom-0d2240?style=for-the-badge)](https://github.com/Trac-Systems/intercom)
+[![TNK Rewards](https://img.shields.io/badge/TNK-Rewards%20Enabled-f5c518?style=for-the-badge)](#)
 
 ---
-If you plan to build your own app, study the existing contract/protocol and remove example logic as needed (see `SKILL.md`).
+
+<img width="1265" height="815" alt="image" src="https://github.com/user-attachments/assets/8acfdaf4-5509-4055-a61f-47a603db61d0" />
+<img width="1252" height="823" alt="image" src="https://github.com/user-attachments/assets/09ef731c-0e96-477b-bb58-41b529e7cde7" />
+
+
+## 🎮 What is TonFish?
+
+TonFish is a **real-time multiplayer fishing game** where:
+
+- Players cast lines in a **shared virtual pond** — game state is broadcast via Intercom P2P sidechannels (no central server needed)
+- **Fish are on-chain assets** redeemable for TNK via the Trac replicated-state layer
+- **AI fishing agents** roam the pond autonomously: they tip players, trade fish on the market, and communicate via Intercom as first-class network participants
+- **Weather conditions** (affecting fish spawn rates) are consensus state shared across all peers
+- Players can **chat in real-time** via Intercom sidechannels with AI agents moderating and advising
+
+---
+
+## 🚀 How to Run
+
+```bash
+# Clone this repo (fork of intercom)
+git clone https://github.com/YOUR_USERNAME/TonFish
+cd TonFish
+
+# Install dependencies
+npm install
+
+# Start the Intercom node + game server
+npm start
+
+# Open the game UI
+open index.html
+```
+
+Or just open `index.html` directly in a browser for the UI demo.
+
+---
+
+## 🏗️ Architecture
+
+```
+Player Browser
+   └── index.html (Game UI)
+         ├── Canvas Fishing Game (client-side)
+         ├── Intercom P2P Client (sidechannels)
+         │     ├── Fish spawn broadcasts
+         │     ├── Weather state sync
+         │     ├── Player chat messages
+         │     └── AI Agent communications
+         └── Trac State Layer
+               ├── Fish NFT ownership
+               ├── TNK balance tracking
+               └── Leaderboard consensus
+```
+
+### Intercom Integration Points
+
+| Feature | Intercom Layer Used |
+|---|---|
+| Fish spawn events | Sidechain broadcast |
+| Weather conditions | Replicated state |
+| Player chat | P2P sidechain |
+| AI agent tips | Agent-to-agent + agent-to-human |
+| TNK transactions | Trac replicated state |
+| Leaderboard | Consensus state |
+
+---
+
+## 🤖 AI Agents
+
+TonFish runs **4 autonomous AI agents** over Intercom:
+
+| Agent | Role |
+|---|---|
+| **FishBot Alpha** | Market analyst — tracks fish prices, recommends catches |
+| **WeatherBot** | Broadcasts real-time pond conditions to all peers |
+| **Trader Bot** | Automated TNK market maker — buys/sells fish assets |
+| **Guardian** | Anti-cheat fairness enforcement agent |
+
+Agents communicate with players AND each other via Intercom sidechannels. They are full peers on the network.
+
+---
+
+## 🐟 Fish Rarities & TNK Values
+
+| Fish | Rarity | Base Value |
+|---|---|---|
+| 🦐 Shrimp | Common | 5 TNK |
+| 🐠 Goldfish | Common | 10 TNK |
+| 🦀 Crab | Common | 35 TNK |
+| 🦞 Lobster | Rare | 60 TNK |
+| 🐟 Tropical | Rare | 40 TNK |
+| 🦑 Squid | Rare | 45 TNK |
+| 🦈 Shark | Epic | 150 TNK |
+| 🐋 Whale | Legendary | 300 TNK |
+
+---
+
+## 🎯 Proof It Works
+
+- [x] Open `index.html` → fishing game loads with animated ocean
+- [x] Click canvas or "CAST LINE" → fish gets caught with animation
+- [x] AI agent responds to catch in Community chat
+- [x] Leaderboard shows global TNK rankings
+- [x] AI Agent console shows live Intercom P2P activity logs
+- [x] Chat with other players + ask AI via `@FishBot` command
+
+---
+
+## 📄 Skills File (for AI Agents)
+
+See [`SKILL.md`](./SKILL.md) — instructions for agents interacting with TonFish over Intercom.
+
+---
+
+## 💰 TRAC Reward Address
+
+```
+trac1dtlp63mkjt7kw5vyw3nxgt4sxhg7rzcn5as70t8txsvnh9l8hwmsgq9ns9
+```
+> ⚠️ **Replace this with your actual TRAC address before submitting!**
+
+---
+
+## 📚 About
+
+- **Fork of:** [Trac-Systems/intercom](https://github.com/Trac-Systems/intercom)
+- **License:** MIT
+- **Built for:** awesome-intercom community payout — [Trac-Systems/awesome-intercom](https://github.com/Trac-Systems/awesome-intercom)
+
+---
+
+*Built with ❤️ on Trac Network. Fish responsibly.*
